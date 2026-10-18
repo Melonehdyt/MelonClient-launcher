@@ -85,18 +85,47 @@ skin only changes the launcher preview; it does not change the Minecraft player
 skin or upload anything to a Microsoft or Mojang account.
 The character preview also has Elytra/Flying, Swimming, and Idle animations.
 
+## Running on Linux
+
+The launcher is a Tauri desktop application. Running it from source requires
+Node.js/npm, Rust/Cargo, and the GTK 3, WebKitGTK 4.1, Ayatana AppIndicator,
+librsvg, OpenSSL, and compiler development packages.
+
+On Bazzite or another immutable Fedora system, use Distrobox so these build
+dependencies stay out of the host operating system. From the repository root,
+create a Fedora development container and install the prerequisites:
+
+```sh
+distrobox create --name melonclient-dev --image registry.fedoraproject.org/fedora:44 --yes
+distrobox enter melonclient-dev -- sudo dnf install -y nodejs npm rust cargo pkgconf-pkg-config gtk3-devel webkit2gtk4.1-devel libayatana-appindicator-gtk3-devel librsvg2-devel openssl-devel gcc gcc-c++ make
+```
+
+Enter the container, change to this repository's `launcher/` directory, and
+install the locked npm dependencies:
+
+```sh
+distrobox enter melonclient-dev
+cd /path/to/MelonClient-launcher/launcher
+npm ci
+npm run dev
+```
+
+Replace `/path/to/MelonClient-launcher` with the checkout's location as seen
+inside the container. Distrobox makes the home directory available there. The
+last command builds and opens the desktop launcher; leave that terminal running
+while using it. On a non-immutable distribution, install the equivalent
+development packages with its package manager, then run `npm ci` and `npm run
+dev` from `launcher/`.
+
 ## Building the launcher
 
 The Tauri launcher project is in [`launcher/`](launcher/). Its frontend uses
 the scripts declared in `launcher/package.json`; Windows and macOS installers
 and Linux packages are built from `launcher/src-tauri/`.
 The GitHub Actions workflow builds installers/packages on Windows, macOS, and
-Linux and publishes them as workflow artifacts.
-
-On Linux, install the Tauri system build dependencies before building: GTK 3,
-WebKitGTK 4.1, Ayatana AppIndicator, librsvg, and the compiler/build tools.
-The workflow builds x86_64 and ARM64 Linux/macOS variants and Windows x64.
-Java is downloaded automatically when a compatible runtime is not found.
+Linux and publishes them as workflow artifacts. The workflow builds x86_64 and
+ARM64 Linux/macOS variants and Windows x64. Java is downloaded automatically
+when a compatible runtime is not found.
 
 macOS builds from the included workflow are unsigned. They can be signed and
 notarized in a separately configured release workflow. Keep signing
