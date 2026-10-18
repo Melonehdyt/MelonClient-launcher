@@ -1,0 +1,36 @@
+.gradle/
+build/
+run/
+.idea/
+*.iml
+out/
+.classpath
+.project
+.settings/
+bin/
+
+# Local dependencies and build output
+**/node_modules/
+**/target/
+**/dist/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+**/auth.json
+**/settings.json
+**/accounts.json
+!.vscode/settings.json
+**/secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+tauri.key
+tauri.key.pub
+
+# Runtime logs
+*.log

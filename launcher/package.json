@@ -1,0 +1,15 @@
+{
+  "name": "melonclient-launcher",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "serve": "node serve.mjs",
+    "dev": "node scripts/tauri.mjs dev",
+    "build": "node scripts/tauri.mjs build",
+    "tauri": "node scripts/tauri.mjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

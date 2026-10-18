@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Melon Client Launcher</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="background" id="background">
+      <div class="bg-layer active" id="bg-default" data-type="default">
+        <video src="img/background.mp4" autoplay muted loop playsinline></video>
+      </div>
+      <div class="bg-layer" id="bg-picture" data-type="picture"></div>
+      <div class="bg-layer" id="bg-video" data-type="video">
+        <video id="bg-video-el" playsinline loop></video>
+      </div>
+      <div class="bg-layer" id="bg-youtube" data-type="youtube">
+        <iframe id="bg-youtube-frame" title="Background" frameborder="0" allow="autoplay; encrypted-media"></iframe>
+      </div>
+      <div class="bg-dim" id="bg-dim"></div>
+    </div>
+
+    <div class="app">
+      <aside class="sidebar minecraft-box">
+        <div class="sidebar-logo minecraft-inset-box" title="Melon Client">
+          <img src="img/logo-solid.png" alt="Melon Client" class="logo-img" />
+        </div>
+        <nav class="sidebar-nav">
+          <button class="side-btn active" data-tab="play" data-label="Play">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-14 9V3z" /></svg>
+            <span>Play</span>
+          </button>
+          <button class="side-btn" data-tab="game-profiles" data-label="Game Profiles">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 8h10M7 12h6M7 16h3" /></svg>
+            <span>Game Profiles</span>
+          </button>
+          <button class="side-btn" data-tab="account" data-label="Accounts">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+            <span>Accounts</span>
+          </button>
+          <button class="side-btn" data-tab="profile" data-label="Profile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="3.4" /><path d="M5.5 21v-1.5a5 5 0 0 1 5-5h3a5 5 0 0 1 5 5V21" /></svg>
+            <span>Profile</span>
+          </button>
+          <button class="side-btn" data-tab="mods" data-label="Mods">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" /><path d="M9 12l2 2 4-4" /></svg>
+            <span>Mods</span>
+          </button>
+          <button class="side-btn" data-tab="console" data-label="Console">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" /></svg>
+            <span>Console</span>
+          </button>
+        </nav>
+        <div class="sidebar-bottom">
+          <button class="side-btn" data-tab="settings" data-label="Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
+            <span>Settings</span>
+          </button>
+        </div>
+      </aside>
+
+      <div class="main-area">
+        <header class="topbar minecraft-box">
+          <div class="topbar-left">
+            <img src="img/logo-solid.png" class="titlebar-logo" alt="" />
+            <span class="topbar-title">Melon Client</span>
+            <span class="topbar-badge" id="conn-badge">
+              <span class="dot" id="conn-dot"></span>
+              <span id="conn-text">Offline</span>
+            </span>
+            <span class="topbar-tab" id="topbar-tab">Play</span>
+          </div>
+          <div class="topbar-right">
+            <div class="account-switcher" id="account-switcher">
+              <button class="account-btn minecraft-inset-box" id="account-btn">
+                <span class="avatar" id="account-avatar"></span>
+                <span class="account-btn-name" id="account-name">Not signed in</span>
+                <span class="caret">&#9662;</span>
+              </button>
+              <div class="account-menu minecraft-box" id="account-menu" hidden>
+                <div class="account-list" id="account-list"></div>
+                <div class="account-add">
+                  <button class="primary small full" id="btn-msa">Add Microsoft account</button>
+                  <div class="row">
+                    <input id="offline-name" type="text" placeholder="Offline username" />
+                    <button class="small" id="btn-offline">Add</button>
+                  </div>
+                  <button class="link-btn" id="btn-msa-device">Use device code instead</button>
+                </div>
+              </div>
+            </div>
+            <div class="window-controls">
+              <button class="win-btn" id="win-min" title="Minimize">
+                <svg viewBox="0 0 12 12"><rect x="2" y="5.4" width="8" height="1.2" fill="currentColor" /></svg>
+              </button>
+              <button class="win-btn" id="win-max" title="Maximize">
+                <svg viewBox="0 0 12 12"><rect x="2.2" y="2.2" width="7.6" height="7.6" fill="none" stroke="currentColor" stroke-width="1.2" /></svg>
+              </button>
+              <button class="win-btn win-close" id="win-close" title="Close">
+                <svg viewBox="0 0 12 12"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" stroke-width="1.3" fill="none" /></svg>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div class="content-body">
+          <section class="pane active" data-pane="play">
+            <div class="home-grid">
+              <div class="home-main">
+                <div class="hero-card minecraft-box">
+                  <div class="hero-body">
+                    <h2 class="hero-title" id="play-title">Ready to launch</h2>
+                    <p class="hero-sub">
+                      <span class="status-dot" id="hero-dot"></span>
+                      <span id="play-summary">Fabric + your mods</span>
+                    </p>
+                    <div class="hero-tags">
+                      <span class="hero-tag" id="hero-account">Not signed in</span>
+                      <span class="hero-tag" id="hero-version">Latest release</span>
+                    </div>
+                    <div class="hero-actions">
+                      <button class="primary hero-btn" id="btn-launch">Launch</button>
+                    </div>
+                    <div class="running-game-controls" id="running-game-controls" hidden>
+                      <label class="field">
+                        <span>Running game instance</span>
+                        <select id="running-game-select"></select>
+                      </label>
+                      <button class="danger" id="btn-stop-game" type="button">Stop selected</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="panel minecraft-box launcher-news" id="launcher-news">
+                  <div class="section-head">
+                    <h3 class="panel-title">News</h3>
+                    <button class="small" id="btn-refresh-news" type="button">Refresh</button>
+                  </div>
+                  <p class="muted" id="news-status" role="status">Loading launcher news…</p>
+                  <div class="launcher-news-list" id="launcher-news-list"></div>
+                </div>
+
+                <div class="progress minecraft-box" id="progress" hidden>
+                  <div class="progress-head">
+                    <span id="progress-title">Installing</span>
+                    <span id="progress-count"></span>
+                  </div>
+                  <div class="progress-track minecraft-inset-flat">
+                    <div class="progress-fill" id="progress-fill"></div>
+                  </div>
+                  <p id="progress-message"></p>
+                </div>
+              </div>
+
+              <div class="home-side">
+                <div class="panel minecraft-box">
+                  <h3 class="panel-title">Game profile</h3>
+                  <div class="play-profile-picker">
+                    <span class="profile-avatar-large" id="play-profile-avatar" aria-hidden="true"></span>
+                    <label class="field">
+                      <span>Selected profile</span>
+                      <select id="play-profile-select"></select>
+                    </label>
+                  </div>
+                  <button class="small" id="btn-manage-profiles" type="button">Manage profiles</button>
+                </div>
+                <div class="panel minecraft-box">
+                  <h3 class="panel-title">Version</h3>
+                  <label class="field">
+                    <span>Minecraft version</span>
+                    <select id="version-select"></select>
+                  </label>
+                  <label class="field">
+                    <span>Mod loader</span>
+                    <select id="mod-loader-select">
+                      <option value="fabric">Fabric</option>
+                      <option value="quilt">Quilt</option>
+                      <option value="forge">Forge</option>
+                      <option value="neoforge">NeoForge</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span id="loader-label">Fabric version</span>
+                    <select id="loader-select">
+                      <option value="">Latest</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="pane" data-pane="game-profiles">
+            <div class="section-head">
+              <h2 class="tab-title">Game Profiles</h2>
+            </div>
+            <div class="panel minecraft-box game-profiles-panel">
+              <p class="muted">Each profile has its own game files and mods folder. Select a profile here to make it active for launching and mod management.</p>
+              <form class="profile-create-form" id="profile-create-form">
+                <label class="field">
+                  <span>New profile name</span>
+                  <input id="new-profile-name" type="text" maxlength="32" placeholder="e.g. Modded Survival" autocomplete="off">
+                </label>
+                <div class="grid two">
+                  <label class="field">
+                    <span>Minecraft version</span>
+                    <select id="new-profile-version"></select>
+                  </label>
+                  <label class="field">
+                    <span>Mod loader</span>
+                    <select id="new-profile-loader">
+                      <option value="fabric">Fabric</option>
+                      <option value="quilt">Quilt</option>
+                      <option value="forge">Forge</option>
+                      <option value="neoforge">NeoForge</option>
+                    </select>
+                  </label>
+                </div>
+                <label class="field">
+                  <span id="new-profile-loader-label">Fabric version</span>
+                  <select id="new-profile-loader-version">
+                    <option value="">Latest</option>
+                  </select>
+                </label>
+                <div class="field">
+                  <span>Profile image</span>
+                  <span class="profile-icon-preview" id="new-profile-avatar-preview" aria-hidden="true"></span>
+                  <button class="small profile-icon-upload" id="btn-upload-new-profile-icon" type="button">Upload PNG icon…</button>
+                  <span class="muted" id="new-profile-icon-name">Default Melon Client logo</span>
+                </div>
+                <button class="small" id="btn-create-profile" type="submit">Create profile</button>
+              </form>
+              <div class="game-profiles-list-panel">
+                <h3 class="panel-title">Your profiles</h3>
+                <div class="game-profile-list" id="game-profile-cards"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="pane" data-pane="account">
+            <div class="section-head">
+              <h2 class="tab-title">Accounts</h2>
+              <button class="small" id="btn-add-msa">Add Microsoft account</button>
+            </div>
+            <div class="account-cards" id="account-cards"></div>
+
+            <div class="panel minecraft-box">
+              <h3 class="panel-title">Offline account</h3>
+              <p class="muted">For singleplayer or offline-mode servers (no authentication).</p>
+              <div class="row">
+                <input id="account-offline-name" type="text" placeholder="Username" />
+                <button id="btn-add-offline">Add offline account</button>
+              </div>
+            </div>
+
+            <div class="device-code minecraft-inset-box" id="device-code" hidden>
+              <p>
+                Go to <a id="verify-link" href="#" target="_blank" rel="noreferrer"></a>
+                and enter:
+              </p>
+              <div class="code" id="user-code"></div>
+              <p class="muted small-text">
+                Device code needs an Azure app registration (client id) with the
+                <code>XboxLive.signin offline_access</code> scope.
+              </p>
+            </div>
+          </section>
+
+          <section class="pane" data-pane="profile">
+            <div class="section-head">
+              <h2 class="tab-title">Profile</h2>
+              <span class="muted" id="profile-kind-label"></span>
+            </div>
+            <div class="profile-stack">
+              <div class="profile-grid">
+                <div class="profile-view minecraft-box">
+                  <canvas id="skin-canvas"></canvas>
+                  <div class="profile-view-empty" id="profile-empty">
+                    <span class="melon-cube"></span>
+                    <p>Sign in or select a saved skin to preview your character</p>
+                  </div>
+                </div>
+                <div class="profile-side">
+                  <div class="panel minecraft-box">
+                    <h3 class="panel-title">Current skin</h3>
+                    <div class="current-skin">
+                      <canvas class="current-skin-face" id="current-skin-face" width="64" height="64"></canvas>
+                      <div class="current-skin-details">
+                        <p class="current-skin-name" id="current-skin-name">No skin selected</p>
+                        <div class="skin-model-controls" role="group" aria-label="Current skin arm style">
+                          <span class="muted">Arm model</span>
+                          <button class="small skin-model-btn selected" id="btn-skin-classic" data-model="classic">Classic</button>
+                          <button class="small skin-model-btn" id="btn-skin-slim" data-model="slim">Slim</button>
+                        </div>
+                      </div>
+                    </div>
+                    <p class="muted skin-status" id="skin-status" aria-live="polite"></p>
+                    <div class="profile-animation-controls" role="group" aria-label="Character preview animation">
+                      <button class="small" id="btn-animation-elytra" aria-pressed="false">Elytra</button>
+                      <button class="small" id="btn-animation-swim" aria-pressed="false">Swim</button>
+                      <button class="small" id="btn-animation-idle" aria-pressed="true">Idle</button>
+                    </div>
+                  </div>
+                  <div class="panel minecraft-box">
+                    <div class="profile-id">
+                      <h3 class="profile-name" id="profile-name">Not signed in</h3>
+                      <p class="muted" id="profile-uuid"></p>
+                    </div>
+                    <div class="row profile-controls">
+                      <button class="small" id="btn-skin-spin">Toggle rotation</button>
+                      <button class="small" id="btn-skin-reset">Reset camera</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="panel minecraft-box">
+                <div class="cape-head">
+                  <h3 class="panel-title">Capes</h3>
+                  <span class="muted" id="profile-cape">Sign in to load your capes</span>
+                </div>
+                <div class="cape-grid" id="cape-list"></div>
+              </div>
+              <div class="panel minecraft-box">
+                <div class="skin-library-head">
+                  <div>
+                    <h3 class="panel-title">My skins</h3>
+                    <p class="muted">Saved locally for preview in the launcher. This does not change your Minecraft skin.</p>
+                  </div>
+                  <div class="skin-library-add">
+                    <button class="small" id="btn-select-skin">Add skin PNG…</button>
+                    <form class="skin-username-search" id="skin-username-form">
+                      <input id="skin-username" type="text" autocomplete="off" maxlength="16" placeholder="Minecraft username" aria-label="Minecraft username" />
+                      <button class="small" id="btn-download-skin" type="submit">Find skin</button>
+                    </form>
+                  </div>
+                </div>
+                <p class="muted skin-username-status" id="skin-username-status" aria-live="polite"></p>
+                <div class="skin-library" id="skin-library"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="pane" data-pane="mods">
+            <div class="section-head">
+              <h2 class="tab-title">Mods &amp; Packs</h2>
+              <button class="small" id="btn-open-mods">Open mods folder</button>
+            </div>
+            <div class="panel minecraft-box installed-mods-panel">
+              <div class="installed-mods-head">
+                <div>
+                  <h3 class="panel-title" id="installed-content-title">Installed mods</h3>
+                  <p class="muted" id="mods-active-profile"></p>
+                  <p class="muted" id="installed-mods-status" aria-live="polite">Loading mods…</p>
+                </div>
+                <button class="small" id="btn-refresh-mods">Refresh</button>
+              </div>
+              <div class="installed-mods-grid" id="installed-mods-list"></div>
+            </div>
+            <div class="panel minecraft-box modrinth-panel">
+              <h3 class="panel-title">Browse Modrinth</h3>
+              <p class="muted">Install mods, resource packs, and shader packs directly into the active profile.</p>
+              <label class="field mod-content-type-field">
+                <span>Content type</span>
+                <select id="mod-content-type">
+                  <option value="mod">Mods</option>
+                  <option value="resourcepack">Resource Packs</option>
+                  <option value="shader">Shaders</option>
+                </select>
+              </label>
+              <form class="modrinth-search" id="modrinth-search-form">
+                <input id="modrinth-query" type="search" placeholder="Search Modrinth…" maxlength="120" />
+                <button class="primary" id="btn-modrinth-search" type="submit">Search</button>
+              </form>
+              <div class="modrinth-filters">
+                <label class="field">
+                  <span>Category</span>
+                  <select id="modrinth-category">
+                    <option value="">All categories</option>
+                    <option value="adventure">Adventure</option>
+                    <option value="decoration">Decoration</option>
+                    <option value="economy">Economy</option>
+                    <option value="food">Food</option>
+                    <option value="game-mechanics">Game mechanics</option>
+                    <option value="library">Library</option>
+                    <option value="magic">Magic</option>
+                    <option value="mobs">Mobs</option>
+                    <option value="optimization">Optimization</option>
+                    <option value="storage">Storage</option>
+                    <option value="technology">Technology</option>
+                    <option value="transportation">Transportation</option>
+                    <option value="utility">Utility</option>
+                    <option value="worldgen">World generation</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Sort by</span>
+                  <select id="modrinth-sort">
+                    <option value="relevance">Relevance</option>
+                    <option value="downloads">Downloads</option>
+                    <option value="follows">Follows</option>
+                    <option value="updated">Recently updated</option>
+                  </select>
+                </label>
+              </div>
+              <p class="muted" id="modrinth-status" aria-live="polite"></p>
+              <div class="modrinth-results" id="modrinth-results"></div>
+            </div>
+          </section>
+
+          <section class="pane" data-pane="settings">
+            <div class="section-head">
+              <h2 class="tab-title">Settings</h2>
+            </div>
+            <div class="panel minecraft-box">
+              <label class="field">
+                <span>Minecraft directory <small class="muted">Path text is blurred until focused.</small></span>
+                <input id="set-mcdir" class="private-path" type="text" />
+              </label>
+              <div class="grid two">
+                <label class="field">
+                  <span>Java executable</span>
+                  <input id="set-java" class="private-path" type="text" placeholder="Auto-detect / java from PATH" />
+                </label>
+                <label class="field">
+                  <span>Memory (MB) — <b id="mem-label">4096</b></span>
+                  <input id="set-memory" type="range" min="1024" max="16384" step="512" value="4096" />
+                </label>
+              </div>
+              <label class="field">
+                <span>Extra JVM arguments</span>
+                <input id="set-jvm" type="text" placeholder="-XX:+UseG1GC" />
+              </label>
+              <label class="field">
+                <span>Azure client id (only for device-code sign-in)</span>
+                <input id="set-azid" type="text" placeholder="Azure application (client) ID" />
+              </label>
+              <label class="check settings-news-toggle">
+                <input id="set-news-enabled" type="checkbox" checked />
+                <span>Show launcher news on the Play page</span>
+              </label>
+              <label class="check settings-news-toggle">
+                <input id="set-hide-after-launch" type="checkbox" />
+                <span>Hide launcher to the system tray after Minecraft starts</span>
+              </label>
+              <div class="row end">
+                <button id="btn-reset-settings" type="button">Reset settings</button>
+                <button class="primary" id="btn-save">Save settings</button>
+              </div>
+            </div>
+
+            <div class="panel minecraft-box">
+              <h3 class="panel-title">Background</h3>
+              <div class="grid two">
+                <label class="field">
+                  <span>Type</span>
+                  <select id="set-bg-type">
+                    <option value="default">Default video</option>
+                    <option value="picture">Picture</option>
+                    <option value="video">Video</option>
+                    <option value="youtube">YouTube</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Fit</span>
+                  <select id="set-bg-fit">
+                    <option value="cover">Cover</option>
+                    <option value="contain">Contain</option>
+                    <option value="fill">Fill</option>
+                  </select>
+                </label>
+              </div>
+              <label class="field">
+                <span>Source (file for picture/video, YouTube video or playlist URL)</span>
+                <input id="set-bg-source" class="private-path" type="text" placeholder="File path, video URL, playlist URL or ID" />
+              </label>
+              <p class="muted" id="bg-youtube-status" aria-live="polite" hidden></p>
+              <div class="row end">
+                <button id="btn-browse-bg">Browse…</button>
+                <button id="btn-apply-bg">Apply now</button>
+              </div>
+              <div class="grid two">
+                <label class="field">
+                  <span>Dim — <b id="bg-dim-label">35</b>%</span>
+                  <input id="set-bg-dim" type="range" min="0" max="100" step="5" value="35" />
+                </label>
+                <label class="field">
+                  <span>Blur — <b id="bg-blur-label">0</b>px</span>
+                  <input id="set-bg-blur" type="range" min="0" max="40" step="1" value="0" />
+                </label>
+              </div>
+              <label class="field">
+                <span>Blocks transparency — <b id="bg-panel-transparency-label">0</b>%</span>
+                <input id="set-bg-panel-transparency" type="range" min="0" max="80" step="5" value="0" />
+              </label>
+              <label class="field">
+                <span>Video sound — <b id="bg-volume-label">30</b>%</span>
+                <input id="set-bg-volume" type="range" min="0" max="100" step="5" value="30" />
+              </label>
+              <label class="check">
+                <input id="set-bg-mute" type="checkbox" checked />
+                <span>Mute background video</span>
+              </label>
+              <button class="small" id="btn-bg-loop" type="button" aria-pressed="true">
+                Loop video: On
+              </button>
+            </div>
+          </section>
+
+          <section class="pane" data-pane="console">
+            <div class="console-head">
+              <div class="console-source">
+                <span>Output</span>
+                <select id="console-instance-select" aria-label="Choose console output">
+                  <option value="launcher">Launcher</option>
+                </select>
+              </div>
+              <button class="small" id="btn-clear">Clear</button>
+            </div>
+            <div class="console minecraft-inset-box" id="console"></div>
+          </section>
+        </div>
+
+        <footer class="statusbar minecraft-box">
+          <span id="status">Idle</span>
+          <span id="minecraft-dir-label" class="muted privacy-blur" title="Hover to reveal"></span>
+        </footer>
+      </div>
+    </div>
+
+    <dialog class="crash-dialog minecraft-box" id="crash-dialog">
+      <div class="crash-dialog-head">
+        <div>
+          <p class="muted">CRASH REPORT</p>
+          <h2 id="crash-title">Minecraft closed unexpectedly.</h2>
+        </div>
+        <button class="small" id="btn-crash-close" type="button">Close</button>
+      </div>
+      <section class="crash-advice">
+        <h3>What you can try</h3>
+        <p id="crash-advice"></p>
+      </section>
+      <details>
+        <summary>Recent error details</summary>
+        <pre id="crash-details"></pre>
+      </details>
+    </dialog>
+
+    <script src="vendor/skinview3d.bundle.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
