@@ -2242,6 +2242,22 @@ async function init() {
     settings = {};
     appendConsole("[error] Could not load settings: " + error);
   }
+  try {
+    const games = await invoke("list_running_games");
+    for (const game of games) {
+      const pid = String(game.pid);
+      runningGames.set(pid, game);
+      consoleInstances.set(pid, game);
+      if (!consoleLogs.has(pid)) consoleLogs.set(pid, []);
+    }
+    if (games.length) {
+      selectedConsoleId = String(games[games.length - 1].pid);
+      renderRunningGames();
+      setStatus(`${games.length} game instance(s) running`);
+    }
+  } catch (error) {
+    appendConsole("[error] Could not restore running Minecraft instances: " + error);
+  }
   fillSettingsForm(settings);
   $("mod-loader-select").value = settings.mod_loader || "fabric";
   await loadLocalSkins();

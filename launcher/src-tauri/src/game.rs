@@ -3,11 +3,12 @@ use crate::settings::Settings;
 use crate::util::{self, Features};
 use anyhow::{anyhow, bail, Context, Result};
 use futures_util::future::join_all;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use sysinfo::{Pid, System};
 use tauri::{AppHandle, Emitter, Manager};
 
 pub const VERSION_MANIFEST: &str =
@@ -52,6 +53,152 @@ pub struct InstallPaths {
     pub classpath: Vec<PathBuf>,
     pub natives_dir: PathBuf,
     pub profile: Value,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct RunningGame {
+    pub pid: u32,
+    pub profile_id: String,
+    pub profile_name: String,
+    pub version: String,
+    pub loader: String,
+    #[serde(default)]
+    marker: String,
+}
+
+fn running_games_path(app: &AppHandle) -> Result<PathBuf> {
+    let directory = app.path().app_config_dir()?;
+    std::fs::create_dir_all(&directory)?;
+    Ok(directory.join("running-games.json"))
+}
+
+fn read_tracked_games(app: &AppHandle) -> Result<Vec<RunningGame>> {
+    let path = running_games_path(app)?;
+    match std::fs::read_to_string(path) {
+        Ok(contents) => Ok(serde_json::from_str(&contents)?),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn write_tracked_games(app: &AppHandle, games: &[RunningGame]) -> Result<()> {
+    let path = running_games_path(app)?;
+    std::fs::write(path, serde_json::to_vec_pretty(games)?).map_err(Into::into)
+}
+
+fn process_arguments(process: &sysinfo::Process) -> Vec<String> {
+    process.cmd().iter().cloned().collect()
+}
+
+fn minecraft_loader(arguments: &[String]) -> Option<&'static str> {
+    let arguments = arguments.join(" ");
+    if arguments.contains("net.fabricmc.loader.") {
+        Some("fabric")
+    } else if arguments.contains("org.quiltmc.loader.") {
+        Some("quilt")
+    } else if arguments.contains("net.neoforged.") {
+        Some("neoforge")
+    } else if arguments.contains("net.minecraftforge.")
+        || arguments.contains("cpw.mods.bootstraplauncher.BootstrapLauncher")
+    {
+        Some("forge")
+    } else {
+        None
+    }
+}
+
+fn is_minecraft_process(arguments: &[String]) -> bool {
+    let arguments = arguments.join(" ");
+    arguments.contains("net.minecraft.client.main.Main")
+        || arguments.contains("net.fabricmc.loader.impl.launch.knot.KnotClient")
+        || arguments.contains("org.quiltmc.loader.impl.launch.knot.KnotClient")
+        || arguments.contains("cpw.mods.bootstraplauncher.BootstrapLauncher")
+        || arguments.contains("net.minecraftforge.")
+        || arguments.contains("net.neoforged.")
+}
+
+fn minecraft_version(arguments: &[String]) -> String {
+    arguments
+        .windows(2)
+        .find(|pair| pair[0] == "--version")
+        .map(|pair| pair[1].clone())
+        .unwrap_or_else(|| "unknown version".to_string())
+}
+
+pub fn list_running_games(app: &AppHandle) -> Result<Vec<RunningGame>> {
+    let mut system = System::new_all();
+    system.refresh_all();
+    let mut tracked = read_tracked_games(app)?;
+    let tracked_count = tracked.len();
+    let mut active = Vec::new();
+
+    for (pid, process) in system.processes() {
+        let pid = pid.as_u32();
+        let arguments = process_arguments(process);
+        if let Some(record) = tracked.iter().find(|record| {
+            record.pid == pid
+                && !record.marker.is_empty()
+                && arguments.iter().any(|argument| {
+                    argument == &format!("-Dmelonclient.instance={}", record.marker)
+                })
+        }) {
+            active.push(record.clone());
+        } else if is_minecraft_process(&arguments) {
+            active.push(RunningGame {
+                pid,
+                profile_id: format!("external-{pid}"),
+                profile_name: "Minecraft (detected)".to_string(),
+                version: minecraft_version(&arguments),
+                loader: minecraft_loader(&arguments)
+                    .unwrap_or("minecraft")
+                    .to_string(),
+                marker: String::new(),
+            });
+        }
+    }
+
+    tracked.retain(|record| {
+        active
+            .iter()
+            .any(|game| game.pid == record.pid && game.marker == record.marker)
+    });
+    if tracked.len() != tracked_count {
+        write_tracked_games(app, &tracked)?;
+    }
+    Ok(active)
+}
+
+pub fn stop_recovered_game(app: &AppHandle, pid: u32) -> Result<RunningGame> {
+    let game = list_running_games(app)?
+        .into_iter()
+        .find(|game| game.pid == pid)
+        .ok_or_else(|| anyhow!("That Minecraft instance is no longer running."))?;
+    let mut system = System::new_all();
+    system.refresh_all();
+    let process = system
+        .process(Pid::from_u32(pid))
+        .ok_or_else(|| anyhow!("That Minecraft instance is no longer running."))?;
+    let arguments = process_arguments(process);
+    let verified = if game.marker.is_empty() {
+        is_minecraft_process(&arguments)
+    } else {
+        arguments
+            .iter()
+            .any(|argument| argument == &format!("-Dmelonclient.instance={}", game.marker))
+    };
+    if !verified {
+        bail!("The selected process no longer matches this Minecraft instance.");
+    }
+    if !process.kill() {
+        bail!("Could not stop the selected Minecraft instance.");
+    }
+    Ok(game)
+}
+
+fn forget_tracked_game(app: &AppHandle, pid: u32) -> Result<()> {
+    let mut games = read_tracked_games(app)?;
+    games.retain(|game| game.pid != pid);
+    write_tracked_games(app, &games)
 }
 
 pub async fn loader_versions(
@@ -173,7 +320,10 @@ fn compare_versions(left: &str, right: &str) -> std::cmp::Ordering {
 
 #[cfg(test)]
 mod tests {
-    use super::{compare_versions, java_download_target, neoforge_prefix};
+    use super::{
+        compare_versions, is_minecraft_process, java_download_target, minecraft_loader,
+        minecraft_version, neoforge_prefix,
+    };
 
     #[test]
     fn java_download_target_matches_supported_host_platform() {
@@ -193,6 +343,23 @@ mod tests {
     #[test]
     fn loader_versions_sort_numerically() {
         assert!(compare_versions("21.1.10", "21.1.9").is_gt());
+    }
+
+    #[test]
+    fn detects_minecraft_process_and_reads_loader_and_version() {
+        let arguments = vec![
+            "java".to_string(),
+            "net.fabricmc.loader.impl.launch.knot.KnotClient".to_string(),
+            "--version".to_string(),
+            "1.21.4-fabric".to_string(),
+        ];
+        assert!(is_minecraft_process(&arguments));
+        assert_eq!(minecraft_loader(&arguments), Some("fabric"));
+        assert_eq!(minecraft_version(&arguments), "1.21.4-fabric");
+        assert!(!is_minecraft_process(&[
+            "java".to_string(),
+            "SomeApp".to_string()
+        ]));
     }
 }
 
@@ -1007,6 +1174,8 @@ pub async fn launch(
         // Windows/NVIDIA setups. Forcing the system allocator avoids it.
         "-Dorg.lwjgl.system.allocator=system".to_string(),
     ];
+    let marker = format!("{:032x}", rand::random::<u128>());
+    jvm_args.push(format!("-Dmelonclient.instance={marker}"));
     for extra in settings.extra_jvm_args.split_whitespace() {
         if !extra.is_empty() {
             jvm_args.push(extra.to_string());
@@ -1066,6 +1235,32 @@ pub async fn launch(
     let pid = child
         .id()
         .ok_or_else(|| anyhow!("Could not determine the Minecraft process id."))?;
+    let record = RunningGame {
+        pid,
+        profile_id: profile_id.clone(),
+        profile_name: profile_name.clone(),
+        version: resolved.mc.clone(),
+        loader: resolved.loader_type.clone(),
+        marker,
+    };
+    match read_tracked_games(app) {
+        Ok(mut games) => {
+            games.retain(|game| game.pid != pid);
+            games.push(record);
+            if let Err(error) = write_tracked_games(app, &games) {
+                let _ = app.emit(
+                    "log",
+                    format!("Could not persist Minecraft process tracking: {error}"),
+                );
+            }
+        }
+        Err(error) => {
+            let _ = app.emit(
+                "log",
+                format!("Could not read Minecraft process tracking: {error}"),
+            );
+        }
+    }
     if let Some(stdout) = child.stdout.take() {
         let handle = app.clone();
         tokio::spawn(async move { read_lines(stdout, handle, pid).await });
@@ -1114,6 +1309,12 @@ pub async fn launch(
                     Ok(status) => {
                         let code = status.code().unwrap_or(-1);
                         let stopped = stopped_processes.lock().await.remove(&pid);
+                        if let Err(error) = forget_tracked_game(&app, pid) {
+                            let _ = app.emit(
+                                "log",
+                                format!("Could not clear Minecraft process tracking: {error}"),
+                            );
+                        }
                         let _ = app.emit(
                             "game-exit",
                             serde_json::json!({
@@ -1128,6 +1329,14 @@ pub async fn launch(
                     }
                     Err(error) => {
                         let _ = stopped_processes.lock().await.remove(&pid);
+                        if let Err(clear_error) = forget_tracked_game(&app, pid) {
+                            let _ = app.emit(
+                                "log",
+                                format!(
+                                    "Could not clear Minecraft process tracking: {clear_error}"
+                                ),
+                            );
+                        }
                         let _ = app.emit(
                             "log",
                             format!("Could not monitor Minecraft process {pid}: {error}"),

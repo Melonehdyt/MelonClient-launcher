@@ -952,15 +952,35 @@ async fn launch(app: AppHandle, state: State<'_, Backend>) -> Result<u32, String
 }
 
 #[tauri::command]
-async fn stop_game(state: State<'_, Backend>, pid: u32) -> Result<(), String> {
-    let mut processes = state.game_processes.lock().await;
-    let child = processes
-        .get_mut(&pid)
-        .ok_or_else(|| "That Minecraft instance is no longer running.".to_string())?;
-    child
-        .start_kill()
-        .map_err(|error| format!("Could not stop Minecraft: {error}"))?;
-    state.stopped_processes.lock().await.insert(pid);
+fn list_running_games(app: AppHandle) -> Result<Vec<game::RunningGame>, String> {
+    game::list_running_games(&app).map_err(to_str)
+}
+
+#[tauri::command]
+async fn stop_game(app: AppHandle, state: State<'_, Backend>, pid: u32) -> Result<(), String> {
+    {
+        let mut processes = state.game_processes.lock().await;
+        if let Some(child) = processes.get_mut(&pid) {
+            child
+                .start_kill()
+                .map_err(|error| format!("Could not stop Minecraft: {error}"))?;
+            state.stopped_processes.lock().await.insert(pid);
+            return Ok(());
+        }
+    }
+
+    let game = game::stop_recovered_game(&app, pid).map_err(to_str)?;
+    let _ = app.emit(
+        "game-exit",
+        serde_json::json!({
+            "code": 0,
+            "success": true,
+            "stopped": true,
+            "pid": game.pid,
+            "profile_id": game.profile_id,
+            "profile_name": game.profile_name,
+        }),
+    );
     Ok(())
 }
 
@@ -1532,11 +1552,19 @@ pub fn run() {
             }
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 let app = window.app_handle();
-                let games_running = match app.state::<Backend>().game_processes.try_lock() {
-                    Ok(processes) => !processes.is_empty(),
-                    Err(_) => true,
+                let tracked_games_running = match game::list_running_games(app) {
+                    Ok(games) => !games.is_empty(),
+                    Err(error) => {
+                        eprintln!("Could not check for running Minecraft instances: {error}");
+                        false
+                    }
                 };
-                if games_running {
+                let launcher_tracked_games_running =
+                    match app.state::<Backend>().game_processes.try_lock() {
+                        Ok(processes) => !processes.is_empty(),
+                        Err(_) => true,
+                    };
+                if tracked_games_running || launcher_tracked_games_running {
                     api.prevent_close();
                     if let Err(error) = window.hide() {
                         eprintln!("Could not hide launcher while Minecraft is running: {error}");
@@ -1549,6 +1577,7 @@ pub fn run() {
             set_settings,
             reset_settings,
             list_profiles,
+            list_running_games,
             select_profile,
             create_profile,
             set_profile_avatar,

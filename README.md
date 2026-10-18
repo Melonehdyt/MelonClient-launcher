@@ -43,8 +43,9 @@ instance from the dropdown before pressing **Stop selected**. If the game exits
 unsuccessfully, the launcher opens a crash help dialog with likely causes,
 suggested next steps, and recent relevant console errors. The console is
 bounded and redacts user-directory names; its source dropdown switches between
-launcher output and each game's output. Download/install progress is dismissed
-when setup finishes.
+launcher output and each game's output. Minecraft instances are restored on
+launcher startup, including instances left running after the launcher exits.
+Download/install progress is dismissed when setup finishes.
 
 Settings can hide the launcher to the system tray after a game starts. Closing
 the launcher window while a game is running also hides it to the tray so the
