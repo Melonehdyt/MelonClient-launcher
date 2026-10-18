@@ -85,6 +85,82 @@ skin only changes the launcher preview; it does not change the Minecraft player
 skin or upload anything to a Microsoft or Mojang account.
 The character preview also has Elytra/Flying, Swimming, and Idle animations.
 
+## Install a prebuilt launcher
+
+Every push builds platform-specific packages in GitHub Actions. To download
+them, open the repository's **Actions** tab, select a successful **Build
+launcher** run, and download the artifact for your operating system. Extract
+the downloaded artifact ZIP before installing.
+
+- **Windows x64:** Run `MelonClientLauncher_0.1.0_x64-setup.exe` or open
+  `MelonClientLauncher_0.1.0_x64_en-US.msi` and follow the installer.
+- **macOS:** Open the `.dmg` and drag the app into Applications if a disk image
+  is included. Otherwise, move the `.app` from the artifact into Applications.
+  The automated macOS builds are unsigned and may be blocked by Gatekeeper;
+  they are intended for testing until a trusted Developer ID signing and
+  notarization setup is configured.
+- **Linux:** Install the package for your distribution (`.deb`, `.rpm`, or
+  `.AppImage`, depending on the artifact). AppImage files may need executable
+  permission before they can be launched.
+
+The Windows installer is also available from the local Windows build output
+described below. Do not install packages built for a different operating
+system or CPU architecture.
+
+## Build on Windows
+
+Install Node.js 22 (including npm), Rust using rustup, and Visual Studio Build
+Tools with the **Desktop development with C++** workload. Windows 10/11
+normally includes WebView2; install the Microsoft Edge WebView2 Runtime if it
+is missing.
+
+In PowerShell, from the repository root:
+
+```powershell
+Set-Location launcher
+npm ci
+npm run dev
+```
+
+`npm run dev` builds and opens the launcher for development. To create
+installers instead, run:
+
+```powershell
+npm run build
+```
+
+The MSI and NSIS installers are written to
+`launcher/src-tauri/target/release/bundle/`.
+
+## Build on macOS
+
+Install Node.js 22 (including npm), Rust using rustup, and the Xcode Command
+Line Tools:
+
+```sh
+xcode-select --install
+```
+
+From the repository root, install dependencies and start the development
+launcher:
+
+```sh
+cd launcher
+npm ci
+npm run dev
+```
+
+To create a macOS application bundle and disk image, run:
+
+```sh
+npm run build
+```
+
+The `.app` and any generated `.dmg` are written to
+`launcher/src-tauri/target/release/bundle/`. Builds made this way are unsigned
+unless you separately configure Apple Developer ID signing and notarization.
+For distribution to other users, signed and notarized builds are recommended.
+
 ## Running on Linux
 
 The launcher is a Tauri desktop application. Running it from source requires
@@ -120,12 +196,11 @@ dev` from `launcher/`.
 ## Building the launcher
 
 The Tauri launcher project is in [`launcher/`](launcher/). Its frontend uses
-the scripts declared in `launcher/package.json`; Windows and macOS installers
-and Linux packages are built from `launcher/src-tauri/`.
-The GitHub Actions workflow builds installers/packages on Windows, macOS, and
-Linux and publishes them as workflow artifacts. The workflow builds x86_64 and
-ARM64 Linux/macOS variants and Windows x64. Java is downloaded automatically
-when a compatible runtime is not found.
+the scripts declared in `launcher/package.json`; run `npm run build` from
+`launcher/` on the target operating system to create its native packages. The
+GitHub Actions workflow builds Windows x64, Intel and Apple Silicon macOS, and
+x86_64 and ARM64 Linux packages and publishes them as workflow artifacts.
+Java is downloaded automatically when a compatible runtime is not found.
 
 macOS builds from the included workflow are unsigned. They can be signed and
 notarized in a separately configured release workflow. Keep signing
