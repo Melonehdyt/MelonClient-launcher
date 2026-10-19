@@ -820,6 +820,26 @@ async fn set_cape_with_retry(
     }
 }
 
+async fn set_skin_with_retry(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    account: &StoredAccount,
+    bytes: Vec<u8>,
+    model: &str,
+) -> Result<(), String> {
+    let profile = mc_session(app, client, account).await?;
+    match auth::set_skin(client, &profile.access_token, bytes.clone(), model).await {
+        Ok(()) => Ok(()),
+        Err(_) => {
+            auth::invalidate_token(&account.id);
+            let profile = mc_session(app, client, account).await?;
+            auth::set_skin(client, &profile.access_token, bytes, model)
+                .await
+                .map_err(to_str)
+        }
+    }
+}
+
 #[tauri::command]
 async fn account_capes(
     app: AppHandle,
@@ -856,6 +876,43 @@ async fn set_cape(
         },
     );
     Ok(capes)
+}
+
+#[tauri::command]
+async fn set_account_skin(
+    app: AppHandle,
+    state: State<'_, Backend>,
+    uuid: String,
+    skin_id: String,
+    model: String,
+) -> Result<(), String> {
+    if skin_id.len() != 32 || !skin_id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err("Invalid saved skin selection.".to_string());
+    }
+    if !matches!(model.as_str(), "classic" | "slim") {
+        return Err("Choose either the Classic or Slim skin model.".to_string());
+    }
+
+    let account = account_by_uuid(&app, &uuid).await?;
+    if account.kind != "msa" {
+        return Err("Changing your Minecraft skin requires a Microsoft account.".to_string());
+    }
+
+    let settings = active_profile_settings(&app)?;
+    let (skins_dir, skins_file) = skin_library_paths(&settings);
+    let skins = read_skin_library(&skins_file)?;
+    if !skins.iter().any(|skin| skin.id == skin_id) {
+        return Err("Saved skin was not found.".to_string());
+    }
+    let bytes = std::fs::read(skins_dir.join(format!("{skin_id}.png"))).map_err(to_str)?;
+    validate_skin_png(&bytes)?;
+
+    set_skin_with_retry(&app, &state.client, &account, bytes, &model).await?;
+    let _ = app.emit(
+        "log",
+        format!("Changed Minecraft skin for {}", account.name),
+    );
+    Ok(())
 }
 
 #[tauri::command]
@@ -1607,6 +1664,7 @@ pub fn run() {
             account_textures,
             account_capes,
             set_cape,
+            set_account_skin,
             minecraft_versions,
             loader_versions,
             launch,

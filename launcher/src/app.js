@@ -38,6 +38,7 @@ let localSkins = [];
 let selectedSkinId = "";
 let selectedSkinModel = "classic";
 let skinModelOverridden = false;
+let skinApplyBusy = false;
 let currentSkinSource = "";
 let currentSkinName = "No skin selected";
 let currentCapeSource = null;
@@ -1132,13 +1133,13 @@ function renderSkinLibrary() {
     name.className = "skin-library-name";
     name.textContent = skin.name;
     button.appendChild(name);
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       selectedSkinId = skin.id;
       selectedSkinModel = skin.model === "slim" ? "slim" : "classic";
       skinModelOverridden = false;
       renderSkinLibrary();
-      previewLocalSkin(skin.path, skin.name);
-      $("skin-status").textContent = "Previewing saved skin. Your Minecraft skin is unchanged.";
+      await previewLocalSkin(skin.path, skin.name);
+      await applyLocalSkinToAccount(skin);
     });
     card.appendChild(button);
 
@@ -1246,6 +1247,40 @@ async function previewLocalSkin(path, name) {
   return previewCurrentSkin(toMediaUrl(path), name || "Saved skin");
 }
 
+async function applyLocalSkinToAccount(skin) {
+  const account = activeAccount();
+  if (!account || account.kind !== "msa") {
+    $("skin-status").textContent =
+      "Previewing saved skin. Sign in with a Microsoft account and select a skin to apply it.";
+    return;
+  }
+  if (skinApplyBusy) return;
+
+  skinApplyBusy = true;
+  $("skin-status").textContent = `Applying ${skin.name} to your Microsoft account…`;
+  document.querySelectorAll(".skin-library-item, .skin-model-btn").forEach((button) => {
+    button.disabled = true;
+  });
+  try {
+    await invoke("set_account_skin", {
+      uuid: account.uuid,
+      skinId: skin.id,
+      model: selectedSkinModel,
+    });
+    $("skin-status").textContent = `${skin.name} is now your Minecraft account skin.`;
+    appendConsole(`[launcher] Applied ${skin.name} to ${account.name}'s Minecraft profile.`);
+  } catch (error) {
+    $("skin-status").textContent =
+      `Could not apply ${skin.name}; your Minecraft skin was not changed: ${error}`;
+    appendConsole("[error] Could not apply Minecraft skin: " + error);
+  } finally {
+    skinApplyBusy = false;
+    document.querySelectorAll(".skin-library-item, .skin-model-btn").forEach((button) => {
+      button.disabled = false;
+    });
+  }
+}
+
 async function loadLocalSkins() {
   try {
     localSkins = await invoke("local_skins");
@@ -1283,7 +1318,8 @@ async function updateProfile() {
     const selected = localSkins.find((skin) => skin.id === selectedSkinId);
     if (selected) {
       await previewLocalSkin(selected.path, selected.name);
-      $("skin-status").textContent = "Previewing saved skin. Your Minecraft skin is unchanged.";
+      $("skin-status").textContent =
+        "Previewing saved skin. Select it in My skins to apply it to your Microsoft account.";
     } else {
       await previewCurrentSkin("", "No skin selected");
       empty.hidden = false;
@@ -1308,7 +1344,7 @@ async function updateProfile() {
     v.loadCape(currentCapeSource);
     empty.hidden = true;
     $("skin-status").textContent = selectedSkinId
-      ? "Previewing saved skin. Your Minecraft skin is unchanged."
+      ? "Previewing saved skin. Select it in My skins to apply it to your Microsoft account."
       : "Account skin is active. Select a saved skin to preview it.";
   } catch (err) {
     appendConsole("[launcher] Could not load skin: " + err);
@@ -1321,7 +1357,7 @@ async function updateProfile() {
       }
       empty.hidden = true;
       $("skin-status").textContent = selected
-        ? "Previewing saved skin. Your Minecraft skin is unchanged."
+        ? "Previewing saved skin. Select it in My skins to apply it to your Microsoft account."
         : "Account skin is unavailable; showing the default skin.";
     } catch (e) {
       empty.hidden = false;
@@ -2005,7 +2041,8 @@ function initButtons() {
       skinModelOverridden = false;
       renderSkinLibrary();
       await previewLocalSkin(skin.path, skin.name);
-      $("skin-status").textContent = "Skin saved. It is a launcher preview only and does not change your Minecraft skin.";
+      $("skin-status").textContent =
+        "Skin saved. Select it in My skins to apply it to your Microsoft account.";
       appendConsole(`[launcher] Added ${skin.name} to the local skin library.`);
     } catch (error) {
       appendConsole("[error] " + error);
@@ -2048,6 +2085,8 @@ function initButtons() {
     skinModelOverridden = true;
     renderSkinLibrary();
     if (currentSkinSource) previewCurrentSkin(currentSkinSource, currentSkinName);
+    const selected = localSkins.find((skin) => skin.id === selectedSkinId);
+    if (selected) void applyLocalSkinToAccount(selected);
   });
 
   $("btn-skin-slim").addEventListener("click", () => {
@@ -2055,6 +2094,8 @@ function initButtons() {
     skinModelOverridden = true;
     renderSkinLibrary();
     if (currentSkinSource) previewCurrentSkin(currentSkinSource, currentSkinName);
+    const selected = localSkins.find((skin) => skin.id === selectedSkinId);
+    if (selected) void applyLocalSkinToAccount(selected);
   });
 
   $("modrinth-search-form").addEventListener("submit", async (event) => {

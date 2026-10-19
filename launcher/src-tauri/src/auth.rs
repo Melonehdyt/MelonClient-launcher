@@ -409,6 +409,37 @@ pub async fn set_active_cape(
     }
 }
 
+/// Uploads a new skin to the authenticated Minecraft profile.
+pub async fn set_skin(
+    client: &reqwest::Client,
+    access_token: &str,
+    bytes: Vec<u8>,
+    model: &str,
+) -> Result<()> {
+    if !matches!(model, "classic" | "slim") {
+        bail!("Choose either the Classic or Slim skin model.");
+    }
+
+    let file = reqwest::multipart::Part::bytes(bytes)
+        .file_name("skin.png")
+        .mime_str("image/png")?;
+    let form = reqwest::multipart::Form::new()
+        .text("variant", model.to_string())
+        .part("file", file);
+    let response = client
+        .put(format!("{MC_PROFILE}/skins"))
+        .bearer_auth(access_token)
+        .multipart(form)
+        .send()
+        .await?;
+    let status = response.status();
+    let body = response.text().await.unwrap_or_default();
+    if !status.is_success() {
+        bail!("Minecraft skin upload was rejected ({status}): {body}");
+    }
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Minecraft access-token cache
 //

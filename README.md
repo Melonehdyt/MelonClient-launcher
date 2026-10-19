@@ -80,9 +80,9 @@ be disabled from Settings without affecting the rest of the launcher.
 The Profile tab can save imported 64x64 or 64x32 PNG skin files locally and
 download public skins by Minecraft username. Saved skins can be previewed with
 Classic or Slim arms. The library is stored under
-`config/melonclient/skins/` in the selected Minecraft directory. Selecting a
-skin only changes the launcher preview; it does not change the Minecraft player
-skin or upload anything to a Microsoft or Mojang account.
+`config/melonclient/skins/` in the selected Minecraft directory. Select a saved
+skin while signed in with a Microsoft account to upload it as that account's
+Minecraft skin; otherwise, selecting it only changes the launcher preview.
 The character preview also has Elytra/Flying, Swimming, and Idle animations.
 
 ## Install a prebuilt launcher
