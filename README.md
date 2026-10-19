@@ -5,6 +5,17 @@ Fabric, Quilt, Forge, or NeoForge and lets players choose their own mods. The
 launcher supports Microsoft account sign-in, a Modrinth browser,
 background customization, and a local skin library.
 
+## UI design
+
+The interface intentionally follows the classic Java Edition "Minecraft GUI"
+look instead of a Bedrock-style theme. Bedrock's flatter, more modern panels
+have become familiar enough to feel almost classic themselves nowadays, but
+this is a Java Edition launcher, so it keeps the chunky beveled buttons, inset
+boxes, and pixel font that Java players already recognize. One portfolio we
+admired while building this was Titus "SnaveSutit"
+([snavesutit.github.io](https://snavesutit.github.io/)), whose
+Minecraft-flavoured interface is close to the look we were aiming for here.
+
 ## Launching the game
 
 Choose a Minecraft version and mod loader on the Play page, then press
