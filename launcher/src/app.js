@@ -42,6 +42,10 @@ let skinApplyBusy = false;
 let currentSkinSource = "";
 let currentSkinName = "No skin selected";
 let currentCapeSource = null;
+// Face icons drawn from a skin the user just applied, keyed by account uuid.
+// Lets every avatar update immediately instead of waiting on the remote
+// mc-heads cache to notice the new texture.
+const avatarOverrides = new Map();
 
 function setStatus(text) {
   $("status").textContent = text;
@@ -305,7 +309,15 @@ function avatarUrl(uuid) {
 
 function applyAvatar(el, account) {
   if (!el) return;
+  el.dataset.account = account ? account.uuid || "" : "";
   if (account) {
+    const override = avatarOverrides.get((account.uuid || "").toLowerCase());
+    if (override) {
+      el.dataset.state = "online";
+      el.style.backgroundImage = `url("${override}")`;
+      el.style.imageRendering = "pixelated";
+      return;
+    }
     const url = avatarUrl(account.uuid);
     el.dataset.state = "online";
     el.style.backgroundImage = url ? `url("${url}")` : "";
@@ -313,6 +325,58 @@ function applyAvatar(el, account) {
     el.dataset.state = "offline";
     el.style.backgroundImage = "";
   }
+}
+
+// Draws the 8x8 (plus hat overlay) face out of a full skin image and returns it
+// as a data URL, so it can be reused as an <span> background.
+function skinFaceDataUrl(source) {
+  return new Promise((resolve) => {
+    if (!source) return resolve("");
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 40;
+      canvas.height = 40;
+      const context = canvas.getContext("2d");
+      if (!context) return resolve("");
+      context.imageSmoothingEnabled = false;
+      context.drawImage(image, 8, 8, 8, 8, 0, 0, canvas.width, canvas.height);
+      if (image.width >= 48) {
+        context.drawImage(image, 40, 8, 8, 8, 0, 0, canvas.width, canvas.height);
+      }
+      try {
+        resolve(canvas.toDataURL("image/png"));
+      } catch (_) {
+        resolve(source);
+      }
+    };
+    image.onerror = () => resolve("");
+    image.src = source;
+  });
+}
+
+// Rebuilds the face icon of the account whose skin we just changed so every
+// avatar in the launcher reflects the new skin right away, without waiting on
+// the remote mc-heads cache.
+async function refreshAccountAvatars(account, skin) {
+  if (!account || !skin || !skin.path) return;
+  try {
+    const skinData = await invoke("read_profile_icon", { source: skin.path });
+    const face = await skinFaceDataUrl(skinData);
+    if (!face) return;
+    avatarOverrides.set((account.uuid || "").toLowerCase(), face);
+    refreshAvatarsInPlace();
+  } catch (error) {
+    appendConsole("[launcher] Could not refresh account avatars: " + error);
+  }
+}
+
+function refreshAvatarsInPlace() {
+  document.querySelectorAll("[data-account]").forEach((el) => {
+    const uuid = (el.dataset.account || "").toLowerCase();
+    const account = accounts.find((a) => (a.uuid || "").toLowerCase() === uuid);
+    if (account) applyAvatar(el, account);
+  });
 }
 
 /* ---- Settings ---- */
@@ -1267,8 +1331,9 @@ async function applyLocalSkinToAccount(skin) {
       skinId: skin.id,
       model: selectedSkinModel,
     });
-    $("skin-status").textContent = `${skin.name} is now your Minecraft account skin.`;
     appendConsole(`[launcher] Applied ${skin.name} to ${account.name}'s Minecraft profile.`);
+    await refreshAccountAvatars(account, skin);
+    $("skin-status").textContent = `${skin.name} is now your Minecraft account skin.`;
   } catch (error) {
     $("skin-status").textContent =
       `Could not apply ${skin.name}; your Minecraft skin was not changed: ${error}`;

@@ -427,7 +427,7 @@ pub async fn set_skin(
         .text("variant", model.to_string())
         .part("file", file);
     let response = client
-        .put(format!("{MC_PROFILE}/skins"))
+        .post(format!("{MC_PROFILE}/skins"))
         .bearer_auth(access_token)
         .multipart(form)
         .send()
