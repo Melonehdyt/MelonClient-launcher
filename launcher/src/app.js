@@ -1134,6 +1134,8 @@ function renderSkinLibrary() {
     button.appendChild(name);
     button.addEventListener("click", () => {
       selectedSkinId = skin.id;
+      selectedSkinModel = skin.model === "slim" ? "slim" : "classic";
+      skinModelOverridden = false;
       renderSkinLibrary();
       previewLocalSkin(skin.path, skin.name);
       $("skin-status").textContent = "Previewing saved skin. Your Minecraft skin is unchanged.";
@@ -1999,6 +2001,8 @@ function initButtons() {
       const skin = await invoke("import_local_skin", { source: path, name: "" });
       localSkins.push(skin);
       selectedSkinId = skin.id;
+      selectedSkinModel = "classic";
+      skinModelOverridden = false;
       renderSkinLibrary();
       await previewLocalSkin(skin.path, skin.name);
       $("skin-status").textContent = "Skin saved. It is a launcher preview only and does not change your Minecraft skin.";
@@ -2025,6 +2029,8 @@ function initButtons() {
       const skin = await invoke("download_skin_by_username", { username });
       localSkins.push(skin);
       selectedSkinId = skin.id;
+      selectedSkinModel = skin.model === "slim" ? "slim" : "classic";
+      skinModelOverridden = false;
       renderSkinLibrary();
       await previewLocalSkin(skin.path, skin.name);
       $("skin-username-status").textContent = `Saved ${skin.name}'s skin to your local library.`;

@@ -245,14 +245,30 @@ fn validate_loader(loader: &str) -> Result<()> {
 }
 
 fn safe_filename<'a>(filename: &'a str, extension: &str) -> Result<&'a str> {
+    let stem = filename
+        .split('.')
+        .next()
+        .unwrap_or_default()
+        .trim_end_matches([' ', '.'])
+        .to_ascii_uppercase();
+    let reserved_device_name = matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || ["COM", "LPT"].iter().any(|prefix| {
+            stem.strip_prefix(prefix).is_some_and(|number| {
+                matches!(number, "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9")
+            })
+        });
     if filename.is_empty()
         || filename.len() > 180
         || !filename.to_ascii_lowercase().ends_with(extension)
-        || filename.starts_with('.')
-        || filename.contains("..")
-        || !filename
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || b"._-+".contains(&byte))
+        || filename.ends_with([' ', '.'])
+        || filename.chars().any(|character| {
+            character.is_control()
+                || matches!(
+                    character,
+                    '/' | '\\' | '<' | '>' | ':' | '"' | '|' | '?' | '*'
+                )
+        })
+        || reserved_device_name
     {
         bail!("Modrinth returned an unsafe or invalid filename.");
     }
@@ -308,7 +324,19 @@ mod tests {
             safe_filename("Awesome-Pack.ZIP", ".zip").unwrap(),
             "Awesome-Pack.ZIP"
         );
+        assert_eq!(
+            safe_filename("My Resource Pack (1.20).zip", ".zip").unwrap(),
+            "My Resource Pack (1.20).zip"
+        );
+        assert_eq!(
+            safe_filename("日本語リソースパック.zip", ".zip").unwrap(),
+            "日本語リソースパック.zip"
+        );
         assert_eq!(safe_filename("CoolMod.jar", ".jar").unwrap(), "CoolMod.jar");
+        assert!(safe_filename("Bad/Pack.zip", ".zip").is_err());
+        assert!(safe_filename("Bad:Pack.zip", ".zip").is_err());
+        assert!(safe_filename("Pack.zip.", ".zip").is_err());
+        assert!(safe_filename("CON.zip", ".zip").is_err());
         assert!(safe_filename("../evil.zip", ".zip").is_err());
         assert!(safe_filename("readme.txt", ".zip").is_err());
     }

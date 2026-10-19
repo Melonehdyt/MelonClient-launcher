@@ -184,6 +184,22 @@ fn secure_mojang_skin_url(raw_url: &str) -> Result<reqwest::Url, String> {
     Ok(url)
 }
 
+fn skin_model(texture_profile: &Value) -> &'static str {
+    match texture_profile["textures"]["SKIN"]["metadata"]["model"].as_str() {
+        Some("slim") => "slim",
+        _ => "classic",
+    }
+}
+
+fn minecraft_profile_url(username: &str) -> Result<reqwest::Url, String> {
+    let mut url =
+        reqwest::Url::parse("https://api.mojang.com/users/profiles/minecraft").map_err(to_str)?;
+    url.path_segments_mut()
+        .map_err(|_| "Could not construct the Minecraft profile lookup URL.".to_string())?
+        .push(username);
+    Ok(url)
+}
+
 fn active_profile_settings(app: &AppHandle) -> Result<Settings, String> {
     let mut settings = load_settings(app);
     let store = load_profiles(app, &settings)?;
@@ -507,8 +523,44 @@ async fn fetch_launcher_news(state: State<'_, Backend>) -> Result<Vec<LauncherNe
 
 #[cfg(test)]
 mod profile_tests {
-    use super::{profile_directory, profile_folder_slug, secure_mojang_skin_url};
+    use super::{
+        minecraft_profile_url, profile_directory, profile_folder_slug, secure_mojang_skin_url,
+        skin_model,
+    };
     use std::path::Path;
+
+    #[test]
+    fn reads_slim_arm_model_from_mojang_skin_metadata() {
+        let profile = serde_json::json!({
+            "textures": {
+                "SKIN": {
+                    "url": "http://textures.minecraft.net/texture/example",
+                    "metadata": { "model": "slim" }
+                }
+            }
+        });
+
+        assert_eq!(skin_model(&profile), "slim");
+    }
+
+    #[test]
+    fn defaults_missing_skin_model_metadata_to_classic() {
+        assert_eq!(
+            skin_model(&serde_json::json!({ "textures": {} })),
+            "classic"
+        );
+    }
+
+    #[test]
+    fn minecraft_username_is_encoded_as_a_single_url_path_segment() {
+        let url = minecraft_profile_url("Any name/with?characters#fragment")
+            .expect("valid profile lookup URL");
+
+        assert_eq!(
+            url.as_str(),
+            "https://api.mojang.com/users/profiles/minecraft/Any%20name%2Fwith%3Fcharacters%23fragment"
+        );
+    }
 
     #[test]
     fn profile_folder_slug_is_safe_for_path_segments() {
@@ -1045,13 +1097,14 @@ fn import_local_skin(
     if name.is_empty() {
         return Err("Skin name must contain at least one visible character.".to_string());
     }
-    save_skin_to_library(&settings, &name, &bytes)
+    save_skin_to_library(&settings, &name, &bytes, "classic")
 }
 
 fn save_skin_to_library(
     settings: &Settings,
     name: &str,
     bytes: &[u8],
+    model: &str,
 ) -> Result<LocalSkinEntry, String> {
     validate_skin_png(bytes)?;
     let (config_dir, skins_file) = skin_library_paths(&settings);
@@ -1064,6 +1117,7 @@ fn save_skin_to_library(
         id,
         name: name.to_string(),
         path: path.to_string_lossy().to_string(),
+        model: model.to_string(),
     };
     skins.push(entry.clone());
     if let Err(error) = write_skin_library(&skins_file, &skins) {
@@ -1080,29 +1134,18 @@ async fn download_skin_by_username(
     username: String,
 ) -> Result<LocalSkinEntry, String> {
     let username = username.trim();
-    if !(3..=16).contains(&username.len())
-        || !username
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
-    {
-        return Err(
-            "Enter a valid Minecraft username (3–16 letters, numbers, or underscores).".to_string(),
-        );
+    if username.is_empty() {
+        return Err("Enter a Minecraft username first.".to_string());
     }
 
-    let profile: Value = state
-        .client
-        .get(format!(
-            "https://api.mojang.com/users/profiles/minecraft/{username}"
-        ))
-        .send()
-        .await
-        .map_err(to_str)?
-        .error_for_status()
-        .map_err(|error| format!("Could not find the Minecraft profile: {error}"))?
-        .json()
-        .await
-        .map_err(to_str)?;
+    let profile_url = minecraft_profile_url(username)?;
+    let response = state.client.get(profile_url).send().await.map_err(to_str)?;
+    if !response.status().is_success() {
+        return Err(format!(
+            "Could not find a Minecraft profile for '{username}'. The name may not exist or may have changed."
+        ));
+    }
+    let profile: Value = response.json().await.map_err(to_str)?;
     let uuid = profile["id"]
         .as_str()
         .filter(|id| id.len() == 32 && id.bytes().all(|byte| byte.is_ascii_hexdigit()))
@@ -1141,6 +1184,7 @@ async fn download_skin_by_username(
     let skin_url = texture_profile["textures"]["SKIN"]["url"]
         .as_str()
         .ok_or_else(|| format!("{profile_name} does not have a public skin."))?;
+    let model = skin_model(&texture_profile);
     let parsed_url = secure_mojang_skin_url(skin_url)?;
     let response = state
         .client
@@ -1160,7 +1204,7 @@ async fn download_skin_by_username(
     validate_skin_png(&bytes)?;
 
     let settings = active_profile_settings(&app)?;
-    save_skin_to_library(&settings, &format!("{profile_name}"), &bytes)
+    save_skin_to_library(&settings, &format!("{profile_name}"), &bytes, model)
 }
 
 #[tauri::command]
@@ -1187,6 +1231,12 @@ struct LocalSkinEntry {
     name: String,
     #[serde(default)]
     path: String,
+    #[serde(default = "default_skin_model")]
+    model: String,
+}
+
+fn default_skin_model() -> String {
+    "classic".to_string()
 }
 
 fn skin_library_paths(settings: &Settings) -> (PathBuf, PathBuf) {
