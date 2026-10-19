@@ -492,31 +492,6 @@ pub async fn resolve_account_cached(
     Ok((profile, rotated))
 }
 
-fn offline_uuid(name: &str) -> String {
-    let digest = md5::compute(format!("OfflinePlayer:{name}"));
-    let mut bytes = digest.0;
-    bytes[6] = (bytes[6] & 0x0f) | 0x30;
-    bytes[8] = (bytes[8] & 0x3f) | 0x80;
-    let hex = hex::encode(bytes);
-    format!(
-        "{}-{}-{}-{}-{}",
-        &hex[0..8],
-        &hex[8..12],
-        &hex[12..16],
-        &hex[16..20],
-        &hex[20..32]
-    )
-}
-
-pub fn offline_profile(name: &str) -> McProfile {
-    McProfile {
-        name: name.to_string(),
-        uuid: offline_uuid(name),
-        access_token: "0".to_string(),
-        user_type: "legacy".to_string(),
-    }
-}
-
 /// Refreshes a browser (login.live.com) Microsoft token. Unlike the device-code
 /// flow this uses the official Minecraft client id and the live.com endpoint.
 pub async fn refresh_msa_live(client: &reqwest::Client, refresh_token: &str) -> Result<MsaTokens> {
@@ -559,10 +534,6 @@ pub async fn resolve_account(
     account: &StoredAccount,
 ) -> Result<(McProfile, Option<String>)> {
     match account.kind.as_str() {
-        "offline" => Ok((
-            offline_profile(account.offline_name.as_deref().unwrap_or(&account.name)),
-            None,
-        )),
         "msa" => {
             let refresh = account
                 .refresh_token

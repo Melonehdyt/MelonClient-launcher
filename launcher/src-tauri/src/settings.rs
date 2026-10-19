@@ -91,9 +91,9 @@ pub fn default_minecraft_dir() -> String {
     ".minecraft".to_string()
 }
 
-/// One saved account. `kind` is "msa" or "offline"; `flow` is "live"
-/// (browser sign-in against login.live.com), "consumers" (device-code against
-/// the Microsoft consumers endpoint) or "offline".
+/// One saved Microsoft account. `flow` is "live" (browser sign-in against
+/// login.live.com) or "consumers" (device-code against the Microsoft consumers
+/// endpoint).
 #[derive(Serialize, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct StoredAccount {
@@ -104,8 +104,6 @@ pub struct StoredAccount {
     pub flow: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refresh_token: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub offline_name: Option<String>,
 }
 
 impl StoredAccount {
@@ -123,8 +121,6 @@ pub struct AuthStore {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub msa_refresh_token: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub offline_name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub profile_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub profile_uuid: Option<String>,
@@ -138,30 +134,30 @@ impl AuthStore {
         if self.accounts.is_empty() {
             if let (Some(kind), Some(name)) = (self.profile_kind.clone(), self.profile_name.clone())
             {
-                let uuid = self.profile_uuid.clone().unwrap_or_default();
-                let id = if kind == "msa" {
-                    format!("msa:{uuid}")
-                } else {
-                    format!("offline:{}", name.to_lowercase())
-                };
-                self.accounts.push(StoredAccount {
-                    id: id.clone(),
-                    name,
-                    uuid,
-                    kind: kind.clone(),
-                    flow: if kind == "msa" {
-                        "live".into()
-                    } else {
-                        "offline".into()
-                    },
-                    refresh_token: self.msa_refresh_token.clone(),
-                    offline_name: self.offline_name.clone(),
-                });
-                self.active = Some(id);
+                if kind == "msa" {
+                    let uuid = self.profile_uuid.clone().unwrap_or_default();
+                    let id = format!("msa:{uuid}");
+                    self.accounts.push(StoredAccount {
+                        id: id.clone(),
+                        name,
+                        uuid,
+                        kind,
+                        flow: "live".into(),
+                        refresh_token: self.msa_refresh_token.clone(),
+                    });
+                    self.active = Some(id);
+                }
             }
         }
+        self.accounts.retain(StoredAccount::online);
+        if !self
+            .accounts
+            .iter()
+            .any(|account| Some(account.id.as_str()) == self.active.as_deref())
+        {
+            self.active = self.accounts.first().map(|account| account.id.clone());
+        }
         self.msa_refresh_token = None;
-        self.offline_name = None;
         self.profile_name = None;
         self.profile_uuid = None;
         self.profile_kind = None;
@@ -185,6 +181,59 @@ impl AuthStore {
         if self.active.as_deref() == Some(id) {
             self.active = self.accounts.first().map(|a| a.id.clone());
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AuthStore;
+
+    #[test]
+    fn migration_removes_offline_accounts_and_preserves_microsoft_accounts() {
+        let mut store: AuthStore = serde_json::from_value(serde_json::json!({
+            "active": "offline:player",
+            "accounts": [
+                {
+                    "id": "offline:player",
+                    "name": "Player",
+                    "uuid": "offline-uuid",
+                    "kind": "offline",
+                    "flow": "offline",
+                    "offline_name": "Player"
+                },
+                {
+                    "id": "msa:microsoft",
+                    "name": "Microsoft",
+                    "uuid": "microsoft-uuid",
+                    "kind": "msa",
+                    "flow": "live",
+                    "refresh_token": "refresh-token"
+                }
+            ]
+        }))
+        .unwrap();
+
+        store.migrate();
+
+        assert_eq!(store.accounts.len(), 1);
+        assert_eq!(store.accounts[0].id, "msa:microsoft");
+        assert_eq!(store.active.as_deref(), Some("msa:microsoft"));
+    }
+
+    #[test]
+    fn migration_does_not_restore_a_legacy_offline_account() {
+        let mut store: AuthStore = serde_json::from_value(serde_json::json!({
+            "profile_name": "Player",
+            "profile_uuid": "offline-uuid",
+            "profile_kind": "offline",
+            "offline_name": "Player"
+        }))
+        .unwrap();
+
+        store.migrate();
+
+        assert!(store.accounts.is_empty());
+        assert_eq!(store.active, None);
     }
 }
 

@@ -306,7 +306,7 @@ function applyAvatar(el, account) {
   if (!el) return;
   if (account) {
     const url = avatarUrl(account.uuid);
-    el.dataset.state = account.kind === "msa" ? "online" : "offline";
+    el.dataset.state = "online";
     el.style.backgroundImage = url ? `url("${url}")` : "";
   } else {
     el.dataset.state = "offline";
@@ -926,20 +926,14 @@ function renderAccounts(state) {
   // Topbar button
   $("account-name").textContent = active ? active.name : "Not signed in";
   applyAvatar($("account-avatar"), active);
-  $("hero-account").textContent = active
-    ? active.name + (active.kind === "msa" ? "" : " (offline)")
-    : "Not signed in";
+  $("hero-account").textContent = active ? active.name : "Not signed in";
   const dot = $("hero-dot");
-  dot.classList.toggle("online", !!(active && active.kind === "msa"));
+  dot.classList.toggle("online", !!active);
 
   const badge = $("conn-badge");
-  const online = !!(active && active.kind === "msa");
+  const online = !!active;
   badge.dataset.state = online ? "online" : "offline";
-  $("conn-text").textContent = active
-    ? online
-      ? "Signed in"
-      : "Offline mode"
-    : "Not signed in";
+  $("conn-text").textContent = active ? "Signed in" : "Not signed in";
 
   // Dropdown list
   const list = $("account-list");
@@ -961,7 +955,7 @@ function renderAccounts(state) {
   if (accounts.length === 0) {
     const note = document.createElement("div");
     note.className = "empty-note minecraft-inset-box";
-    note.textContent = "You are not signed in. Add a Microsoft or offline account.";
+    note.textContent = "You are not signed in. Add a Microsoft account.";
     cards.appendChild(note);
   }
   for (const account of accounts) {
@@ -985,8 +979,7 @@ function accountMenuItem(account) {
     <button class="account-item-remove" title="Remove">&times;</button>`;
   applyAvatar(item.querySelector(".avatar"), account);
   item.querySelector(".account-item-name").textContent = account.name;
-  item.querySelector(".account-item-kind").textContent =
-    account.kind === "msa" ? "Microsoft" : "Offline";
+  item.querySelector(".account-item-kind").textContent = "Microsoft";
   item.addEventListener("click", () => selectAccount(account.id));
   item.querySelector(".account-item-remove").addEventListener("click", (e) => {
     e.stopPropagation();
@@ -1008,8 +1001,7 @@ function accountCard(account) {
   applyAvatar(card.querySelector(".avatar"), account);
   card.querySelector(".account-card-name").textContent = account.name;
   card.querySelector(".account-card-meta").textContent =
-    (account.kind === "msa" ? "Microsoft account" : "Offline account") +
-    (account.active ? " · Active" : "");
+    "Microsoft account" + (account.active ? " · Active" : "");
   card.addEventListener("click", () => selectAccount(account.id));
   card.querySelector(".account-card-remove").addEventListener("click", (e) => {
     e.stopPropagation();
@@ -1269,11 +1261,7 @@ async function updateProfile() {
 
   $("profile-name").textContent = active ? active.name : "Not signed in";
   $("profile-uuid").textContent = active ? active.uuid : "";
-  $("profile-kind-label").textContent = active
-    ? active.kind === "msa"
-      ? "Microsoft account"
-      : "Offline account"
-    : "";
+  $("profile-kind-label").textContent = active ? "Microsoft account" : "";
 
   const v = viewer();
   if (!v) {
@@ -1303,10 +1291,7 @@ async function updateProfile() {
   }
 
   try {
-    const tex = await invoke("account_textures", {
-      uuid: active.uuid,
-      offline: active.kind !== "msa",
-    });
+    const tex = await invoke("account_textures", { uuid: active.uuid });
     const selected = localSkins.find((skin) => skin.id === selectedSkinId);
     if (selected) {
       await previewLocalSkin(selected.path, selected.name);
@@ -1986,21 +1971,9 @@ function initButtons() {
       appendConsole(`[launcher] Signed in as ${account.name}`);
     });
 
-  const addOffline = (input) =>
-    run("Adding offline account", async () => {
-      const account = await invoke("auth_login_offline", { username: input.value });
-      input.value = "";
-      await refreshAccounts();
-      appendConsole(`[launcher] Added offline account ${account.name}`);
-    });
-
   $("btn-msa").addEventListener("click", signInMicrosoft);
   $("btn-add-msa").addEventListener("click", signInMicrosoft);
   $("btn-msa-device").addEventListener("click", signInDevice);
-  $("btn-offline").addEventListener("click", () => addOffline($("offline-name")));
-  $("btn-add-offline").addEventListener("click", () =>
-    addOffline($("account-offline-name"))
-  );
 
   $("account-btn").addEventListener("click", (event) => {
     event.stopPropagation();

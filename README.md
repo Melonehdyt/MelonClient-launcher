@@ -2,7 +2,7 @@
 
 A cross-platform launcher for Minecraft Java Edition that sets up Minecraft with
 Fabric, Quilt, Forge, or NeoForge and lets players choose their own mods. The
-launcher includes Microsoft and offline account management, a Modrinth browser,
+launcher supports Microsoft account sign-in, a Modrinth browser,
 background customization, and a local skin library.
 
 ## Launching the game

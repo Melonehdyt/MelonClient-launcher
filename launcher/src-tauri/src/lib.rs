@@ -633,7 +633,6 @@ async fn auth_login_microsoft(
         kind: "msa".to_string(),
         flow: "consumers".to_string(),
         refresh_token: tokens.refresh_token,
-        offline_name: None,
     });
     save_auth(&app, &store).map_err(to_str)?;
 
@@ -668,7 +667,6 @@ async fn auth_login_browser(
         kind: "msa".to_string(),
         flow: "live".to_string(),
         refresh_token: refresh,
-        offline_name: None,
     });
     save_auth(&app, &store).map_err(to_str)?;
 
@@ -682,33 +680,6 @@ async fn auth_login_browser(
 }
 
 #[tauri::command]
-fn auth_login_offline(app: AppHandle, username: String) -> Result<AccountSummary, String> {
-    let name = username.trim();
-    if name.is_empty() {
-        return Err("Enter a username first.".to_string());
-    }
-    let profile = auth::offline_profile(name);
-    let mut store = load_auth(&app);
-    store.add_account(StoredAccount {
-        id: format!("offline:{}", name.to_lowercase()),
-        name: profile.name.clone(),
-        uuid: profile.uuid.clone(),
-        kind: "offline".to_string(),
-        flow: "offline".to_string(),
-        refresh_token: None,
-        offline_name: Some(name.to_string()),
-    });
-    save_auth(&app, &store).map_err(to_str)?;
-    Ok(AccountSummary {
-        id: format!("offline:{}", name.to_lowercase()),
-        name: profile.name,
-        uuid: profile.uuid,
-        kind: "offline".to_string(),
-        online: false,
-    })
-}
-
-#[tauri::command]
 fn auth_logout(app: AppHandle) -> Result<(), String> {
     save_auth(&app, &AuthStore::default()).map_err(to_str)
 }
@@ -717,15 +688,7 @@ fn auth_logout(app: AppHandle) -> Result<(), String> {
 async fn account_textures(
     state: State<'_, Backend>,
     uuid: String,
-    offline: bool,
 ) -> Result<auth::Textures, String> {
-    if offline {
-        return Ok(auth::Textures {
-            skin: None,
-            cape: None,
-            slim: false,
-        });
-    }
     auth::fetch_textures(&state.client, &uuid)
         .await
         .map_err(to_str)
@@ -1590,7 +1553,6 @@ pub fn run() {
             auth_remove_account,
             auth_login_microsoft,
             auth_login_browser,
-            auth_login_offline,
             auth_logout,
             account_textures,
             account_capes,
