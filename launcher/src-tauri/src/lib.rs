@@ -1110,6 +1110,34 @@ async fn pick_profile_icon_file(app: AppHandle) -> Result<Option<String>, String
 }
 
 #[tauri::command]
+async fn pick_modpack_file(app: AppHandle) -> Result<Option<String>, String> {
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .file()
+        .add_filter("Modrinth modpack", &["mrpack"])
+        .pick_file(move |path| {
+            let _ = sender.send(path);
+        });
+    match receiver.await {
+        Ok(path) => Ok(path.map(|value| value.to_string())),
+        Err(_) => Ok(None),
+    }
+}
+
+/// Installs a `.mrpack` file that was picked or dropped into the active profile.
+#[tauri::command]
+async fn import_modpack(
+    app: AppHandle,
+    state: State<'_, Backend>,
+    source: String,
+) -> Result<String, String> {
+    let settings = active_profile_settings(&app)?;
+    modrinth::import_local_modpack(&state.client, &settings.minecraft_dir, &source)
+        .await
+        .map_err(to_str)
+}
+
+#[tauri::command]
 fn read_profile_icon(source: String) -> Result<String, String> {
     use base64::Engine;
     let source = Path::new(source.trim().trim_matches('"'));
@@ -1673,6 +1701,8 @@ pub fn run() {
             pick_background_file,
             pick_skin_file,
             pick_profile_icon_file,
+            pick_modpack_file,
+            import_modpack,
             read_profile_icon,
             import_local_skin,
             download_skin_by_username,

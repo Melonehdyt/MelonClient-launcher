@@ -340,17 +340,21 @@
                   <p class="muted" id="mods-active-profile"></p>
                   <p class="muted" id="installed-mods-status" aria-live="polite">Loading mods…</p>
                 </div>
-                <button class="small" id="btn-refresh-mods">Refresh</button>
+                <div class="installed-mods-actions">
+                  <button class="small" id="btn-import-modpack" title="Import a .mrpack file into the active profile">Import .mrpack</button>
+                  <button class="small" id="btn-refresh-mods">Refresh</button>
+                </div>
               </div>
               <div class="installed-mods-grid" id="installed-mods-list"></div>
             </div>
             <div class="panel minecraft-box modrinth-panel">
               <h3 class="panel-title">Browse Modrinth</h3>
-              <p class="muted">Install mods, resource packs, and shader packs directly into the active profile.</p>
+              <p class="muted">Install mods, modpacks, resource packs, and shader packs directly into the active profile.</p>
               <label class="field mod-content-type-field">
                 <span>Content type</span>
                 <select id="mod-content-type">
                   <option value="mod">Mods</option>
+                  <option value="modpack">Modpacks</option>
                   <option value="resourcepack">Resource Packs</option>
                   <option value="shader">Shaders</option>
                 </select>

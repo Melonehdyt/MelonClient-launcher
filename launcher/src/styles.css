@@ -1676,6 +1676,18 @@ b {
   margin: 0 0 10px;
 }
 
+.installed-mods-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.installed-mods-actions button {
+  white-space: nowrap;
+}
+
 #mods-active-profile {
   color: var(--mc-accent-hi);
   font-size: 12px;

@@ -33,6 +33,12 @@ const CONTENT_TYPES = {
     directory: "shaderpacks",
     extension: ".zip",
   },
+  modpack: {
+    label: "modpacks",
+    singular: "modpack",
+    directory: "mods",
+    extension: ".mrpack",
+  },
 };
 let localSkins = [];
 let selectedSkinId = "";
@@ -1627,7 +1633,9 @@ function renderModrinthResults(results) {
     downloads.className = "muted";
     downloads.textContent =
       `${Number(mod.downloads || 0).toLocaleString()} downloads` +
-      (contentType === "mod" ? ` · ${loaderLabel($("mod-loader-select").value)}` : "");
+      (contentType === "mod" || contentType === "modpack"
+        ? ` · ${loaderLabel($("mod-loader-select").value)}`
+        : "");
     body.appendChild(downloads);
 
     const install = document.createElement("button");
@@ -1668,7 +1676,9 @@ async function searchModrinth({ force = false } = {}) {
     renderModrinthResults(modrinthCache.get(key));
     return;
   }
-  $("modrinth-status").textContent = query ? "Searching Modrinth…" : "Loading popular mods…";
+  $("modrinth-status").textContent = query
+    ? "Searching Modrinth…"
+    : `Loading popular ${CONTENT_TYPES[projectType].label}…`;
   $("modrinth-results").replaceChildren();
   try {
     const results = await invoke("modrinth_search", {
@@ -1694,8 +1704,13 @@ async function refreshInstalledMods() {
   const contentType = $("mod-content-type").value;
   const content = CONTENT_TYPES[contentType];
   $("installed-content-title").textContent = `Installed ${content.label}`;
-  $("installed-mods-status").textContent = `Loading ${content.label}…`;
   $("installed-mods-list").replaceChildren();
+  if (contentType === "modpack") {
+    $("installed-mods-status").textContent =
+      "Modpacks install their mods, configs, and overrides straight into this profile.";
+    return;
+  }
+  $("installed-mods-status").textContent = `Loading ${content.label}…`;
   try {
     const mods = await invoke("list_installed_content", { projectType: contentType });
     if (token !== installedModsLoadToken) return;
@@ -1733,6 +1748,32 @@ async function refreshInstalledMods() {
     $("installed-mods-status").textContent = `Could not read installed ${content.label}: ${error}`;
     appendConsole(`[launcher] Could not load installed ${content.label}: ${error}`);
   }
+}
+
+// Installs a `.mrpack` file that was picked or dropped onto the launcher into
+// the active profile.
+async function importModpackFromPath(source) {
+  const path = String(source || "").trim().replace(/^"|"$/g, "");
+  if (!/\.mrpack$/i.test(path)) return false;
+  if (!settings) {
+    try {
+      settings = await invoke("get_settings");
+    } catch (_) {}
+  }
+  return run("Importing modpack", async () => {
+    const summary = await invoke("import_modpack", { source: path });
+    const profile = profiles.find((item) => item.id === activeProfileId);
+    const label = profile ? profile.name : "the active profile";
+    $("modrinth-status").textContent = `Imported ${summary} into ${label}.`;
+    appendConsole(`[launcher] Imported modpack ${summary} into ${label}.`);
+    if ($("mod-content-type").value !== "modpack") {
+      $("mod-content-type").value = "modpack";
+      $("modrinth-category").closest(".field").hidden = true;
+      const content = CONTENT_TYPES.modpack;
+      $("installed-content-title").textContent = `Installed ${content.label}`;
+    }
+    await refreshInstalledMods();
+  });
 }
 
 function initWindowControls() {
@@ -2175,7 +2216,10 @@ function initButtons() {
     refreshInstalledMods();
     searchModrinth({ force: true });
     const content = CONTENT_TYPES[$("mod-content-type").value];
-    $("btn-open-mods").textContent = `Open ${content.label} folder`;
+    $("btn-open-mods").textContent =
+      $("mod-content-type").value === "modpack"
+        ? "Open mods folder"
+        : `Open ${content.label} folder`;
   });
   $("modrinth-category").addEventListener("change", () => searchModrinth({ force: true }));
   $("modrinth-sort").addEventListener("change", () => searchModrinth({ force: true }));
@@ -2274,6 +2318,32 @@ function initButtons() {
   });
 
   $("btn-refresh-mods").addEventListener("click", refreshInstalledMods);
+
+  $("btn-import-modpack").addEventListener("click", async () => {
+    try {
+      const path = await invoke("pick_modpack_file");
+      if (path) await importModpackFromPath(path);
+    } catch (error) {
+      appendConsole("[error] Could not import modpack: " + error);
+    }
+  });
+
+  // Drop an .mrpack anywhere on the launcher to install it into the active
+  // profile. Tauri surfaces drops on the webview as `tauri://drag-drop`.
+  listen("tauri://drag-drop", (event) => {
+    const payload = event && event.payload;
+    const paths = Array.isArray(payload)
+      ? payload
+      : payload && Array.isArray(payload.paths) && (!payload.type || payload.type === "drop")
+        ? payload.paths
+        : [];
+    for (const path of paths) {
+      if (/\.mrpack$/i.test(String(path || ""))) {
+        void importModpackFromPath(path);
+        break;
+      }
+    }
+  });
 
   $("btn-skin-spin").addEventListener("click", () => {
     const v = viewer();
